@@ -33,11 +33,13 @@ const pushToCollection = (collection, data) => (
   firebase.database().ref(collection).push(data)
 )
 
-const printMessage = ({ email, message, time }) => {
+const printMessage = async ({ email, message, time }) => {
+  const user = await getCurrentUser()
+  const userColor = user.email === email ? 'red' : 'magenta'
   console.log(
     chalk.yellow(`[${moment(time).format('DD.MM.YYYY HH:mm:ss')}]`) 
     + ' ' +
-    chalk.red(`${email}:`) 
+    chalk[userColor](`${email}:`) 
     + ' ' +
     chalk.green(`${message}`)
   )
@@ -186,7 +188,6 @@ const stateHandlers = {
     getLineAndRunNextAction()
   },  
   [states.START_CHAT]: async (input) => {
-    const user = await getCurrentUser()
     console.log(chalk.green('Welcome to the chat'))
     console.log(chalk.yellow('Type "/quit" to exit'))
     await loadMessages()
