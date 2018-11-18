@@ -104,6 +104,8 @@ const loadMessages = async () => {
       Object.values(store.messages).forEach((message) => {
         printMessage(message)
       })
+    } else {
+      store.messages = {}
     }
 }
 
