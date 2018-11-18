@@ -2,6 +2,7 @@ const firebase = require('firebase')
 const readline = require('readline')
 const process = require('process')
 const moment = require('moment')
+const prompt = require('prompt-password')
 const { firebaseConfig } = require('./config')
 
 const init = () => {
@@ -38,13 +39,18 @@ const printMessage = ({ email, message, time }) => {
 
 const rl = readline.createInterface({
   input: process.stdin,
-  output: process.stdout
+  output: process.stdout,
+  prompt: ''
 })
 
-rl.stdoutMuted = false
+rl.on('SIGINT', () => {
+  process.exit()  
+})
+
+rl.stdoutHidden = false
 
 rl._writeToOutput = function (stringToWrite) {
-  if (rl.stdoutMuted) {
+  if (rl.stdoutHidden && stringToWrite.length) {
     rl.output.write("*")
   } else {
     rl.output.write(stringToWrite)
@@ -112,19 +118,18 @@ const stateHandlers = {
   }, 
   [states.REQUEST_PASSWORD]: async (input) => {
     console.log(`Enter your password`)
-    rl.stdoutMuted = true
     setNextAction(states.GET_PASSWORD)
     getLineAndRunNextAction()
+    rl.stdoutHidden = true
   }, 
   [states.GET_PASSWORD]: async (input) => {
-    console.log(`\n`)
-    rl.stdoutMuted = false
+    rl.stdoutHidden = false
     if (input.match(/.{6,}/)) {
       store.password = input
       setNextAction(states.FETCH_USER)
       runNextAction()
     } else {
-      console.log('The password must be 6 characters long or more')
+      console.log('\nThe password must be 6 characters long or more')
       setNextAction(states.REQUEST_PASSWORD)
       runNextAction()
     }
@@ -132,7 +137,7 @@ const stateHandlers = {
   [states.FETCH_USER]: async (input) => {
     let user = null
     try {
-      console.log('Trying to create new user...')
+      console.log('\nTrying to create new user...')
       user = await signUp(store.email, store.password)
       console.log('New user created')
     } catch (e) {
