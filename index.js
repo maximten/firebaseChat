@@ -34,7 +34,6 @@ const pushToCollection = (collection, data) => (
 )
 
 const printMessage = ({ email, message, time }) => {
-  // console.log(`[${moment(time).format('DD.MM.YYYY HH:mm:ss')}] ${email}: ${message}`)
   console.log(
     chalk.yellow(`[${moment(time).format('DD.MM.YYYY HH:mm:ss')}]`) 
     + ' ' +
@@ -101,9 +100,11 @@ const getLineAndRunNextAction = () => {
 const loadMessages = async () => {
     const snap = await loadCollection('messages')
     store.messages = snap.val()
-    Object.values(store.messages).forEach((message) => {
-      printMessage(message)
-    })
+    if (store.messages) {
+      Object.values(store.messages).forEach((message) => {
+        printMessage(message)
+      })
+    }
 }
 
 const stateHandlers = {
