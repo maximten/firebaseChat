@@ -1,6 +1,7 @@
 const firebase = require('firebase')
 const readline = require('readline')
 const process = require('process')
+const moment = require('moment')
 const { firebaseConfig } = require('./config')
 
 const init = () => {
@@ -19,6 +20,22 @@ const getCurrentUser = async (email, password) => (
   firebase.auth().currentUser 
 )
 
+const loadCollection = async (collection) => (
+  firebase.database().ref(collection).once('value')
+)
+
+const subscribeToCollection = async (collection, callback) => (
+  firebase.database().ref(collection).on('child_added', callback)
+)
+
+const pushToCollection = (collection, data) => (
+  firebase.database().ref(collection).push(data)
+)
+
+const printMessage = ({ email, message, time }) => {
+  console.log(`[${moment(time).format('DD.MM.YYYY HH:mm:ss')}] ${email}: ${message}`)
+} 
+
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
@@ -34,11 +51,14 @@ const states = {
   CHECK_EMAIL_VERIFICATION: 'CHECK_EMAIL_VERIFICATION', 
   REQUEST_EMAIL_VERIFICATION: 'REQUEST_EMAIL_VERIFICATION', 
   START_CHAT: 'START_CHAT', 
+  REQUEST_MESSAGE: 'REQUEST_MESSAGE', 
+  GET_MESSAGE: 'GET_MESSAGE', 
 }
 
 const store = {
   email: null,
   password: null,
+  messages: null
 }
 
 let currentState = states.REQUEST_EMAIL
@@ -53,6 +73,14 @@ const runNextAction = () => {
 
 const getLineAndRunNextAction = () => {
   rl.prompt()
+}
+
+const loadMessages = async () => {
+    const snap = await loadCollection('messages')
+    store.messages = snap.val()
+    Object.values(store.messages).forEach((message) => {
+      printMessage(message)
+    })
 }
 
 const stateHandlers = {
@@ -98,6 +126,7 @@ const stateHandlers = {
     runNextAction()
   }, 
   [states.CHECK_EMAIL_VERIFICATION]: async (input) => {
+    // Signing in to fetch actual user data
     const { user } = await signIn(store.email, store.password)
     if (user.emailVerified) {
       console.log(`Your email is verified`)
@@ -117,8 +146,35 @@ const stateHandlers = {
     getLineAndRunNextAction()
   },  
   [states.START_CHAT]: async (input) => {
+    const user = await getCurrentUser()
     console.log('Welcome to the chat')
-  }  
+    console.log('Type "/quit" to exit')
+    await loadMessages()
+    subscribeToCollection('messages', (snap) => {
+      const message = snap.val()
+      const key = snap.key
+      if (!store.messages.hasOwnProperty(key)) {
+        store.messages[key] = message 
+        printMessage(message)
+      }
+    })
+    setNextAction(states.REQUEST_MESSAGE)
+    runNextAction()
+  },  
+  [states.REQUEST_MESSAGE]: async (input) => {
+    setNextAction(states.GET_MESSAGE)
+    getLineAndRunNextAction()
+  },  
+  [states.GET_MESSAGE]: async (input) => {
+    const user = await getCurrentUser()
+    pushToCollection('messages', {
+      email: user.email,
+      message: input,
+      time: (new Date()).toISOString()
+    })
+    setNextAction(states.REQUEST_MESSAGE)
+    runNextAction()
+  },  
 }
 
 init()
