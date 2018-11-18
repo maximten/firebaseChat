@@ -41,6 +41,16 @@ const rl = readline.createInterface({
   output: process.stdout
 })
 
+rl.stdoutMuted = false
+
+rl._writeToOutput = function (stringToWrite) {
+  if (rl.stdoutMuted) {
+    rl.output.write("*")
+  } else {
+    rl.output.write(stringToWrite)
+  }
+}
+
 const states = {
   STARTUP: 'STARTUP', 
   REQUEST_EMAIL: 'REQUEST_EMAIL', 
@@ -90,19 +100,34 @@ const stateHandlers = {
     getLineAndRunNextAction()
   }, 
   [states.GET_EMAIL]: async (input) => {
-    store.email = input
-    setNextAction(states.REQUEST_PASSWORD)
-    runNextAction()
+    if (input.match(/.+\@.+\..+/)) {
+      store.email = input
+      setNextAction(states.REQUEST_PASSWORD)
+      runNextAction()
+    } else {
+      console.log('Email is not valid')
+      setNextAction(states.REQUEST_EMAIL)
+      runNextAction()
+    }
   }, 
   [states.REQUEST_PASSWORD]: async (input) => {
     console.log(`Enter your password`)
+    rl.stdoutMuted = true
     setNextAction(states.GET_PASSWORD)
     getLineAndRunNextAction()
   }, 
   [states.GET_PASSWORD]: async (input) => {
-    store.password = input
-    setNextAction(states.FETCH_USER)
-    runNextAction()
+    console.log(`\n`)
+    rl.stdoutMuted = false
+    if (input.match(/.{6,}/)) {
+      store.password = input
+      setNextAction(states.FETCH_USER)
+      runNextAction()
+    } else {
+      console.log('The password must be 6 characters long or more')
+      setNextAction(states.REQUEST_PASSWORD)
+      runNextAction()
+    }
   },
   [states.FETCH_USER]: async (input) => {
     let user = null
@@ -166,14 +191,18 @@ const stateHandlers = {
     getLineAndRunNextAction()
   },  
   [states.GET_MESSAGE]: async (input) => {
-    const user = await getCurrentUser()
-    pushToCollection('messages', {
-      email: user.email,
-      message: input,
-      time: (new Date()).toISOString()
-    })
-    setNextAction(states.REQUEST_MESSAGE)
-    runNextAction()
+    if (input === '/quit') {
+      process.exit()
+    } else {
+      const user = await getCurrentUser()
+      pushToCollection('messages', {
+        email: user.email,
+        message: input,
+        time: (new Date()).toISOString()
+      })
+      setNextAction(states.REQUEST_MESSAGE)
+      runNextAction()
+    }
   },  
 }
 
