@@ -2,7 +2,7 @@ const firebase = require('firebase')
 const readline = require('readline')
 const process = require('process')
 const moment = require('moment')
-const prompt = require('prompt-password')
+const chalk = require('chalk')
 const { firebaseConfig } = require('./config')
 
 const init = () => {
@@ -34,7 +34,14 @@ const pushToCollection = (collection, data) => (
 )
 
 const printMessage = ({ email, message, time }) => {
-  console.log(`[${moment(time).format('DD.MM.YYYY HH:mm:ss')}] ${email}: ${message}`)
+  // console.log(`[${moment(time).format('DD.MM.YYYY HH:mm:ss')}] ${email}: ${message}`)
+  console.log(
+    chalk.yellow(`[${moment(time).format('DD.MM.YYYY HH:mm:ss')}]`) 
+    + ' ' +
+    chalk.red(`${email}:`) 
+    + ' ' +
+    chalk.green(`${message}`)
+  )
 } 
 
 const rl = readline.createInterface({
@@ -101,7 +108,7 @@ const loadMessages = async () => {
 
 const stateHandlers = {
   [states.REQUEST_EMAIL]: async (input) => {
-    console.log(`Enter email`)
+    console.log(chalk.blueBright(`Enter email`))
     setNextAction(states.GET_EMAIL)
     getLineAndRunNextAction()
   }, 
@@ -111,13 +118,13 @@ const stateHandlers = {
       setNextAction(states.REQUEST_PASSWORD)
       runNextAction()
     } else {
-      console.log('Email is not valid')
+      console.log(chalk.red('Email is not valid'))
       setNextAction(states.REQUEST_EMAIL)
       runNextAction()
     }
   }, 
   [states.REQUEST_PASSWORD]: async (input) => {
-    console.log(`Enter your password`)
+    console.log(chalk.blueBright(`Enter your password`))
     setNextAction(states.GET_PASSWORD)
     getLineAndRunNextAction()
     rl.stdoutHidden = true
@@ -129,7 +136,7 @@ const stateHandlers = {
       setNextAction(states.FETCH_USER)
       runNextAction()
     } else {
-      console.log('\nThe password must be 6 characters long or more')
+      console.log(chalk.red('\nThe password must be 6 characters long or more'))
       setNextAction(states.REQUEST_PASSWORD)
       runNextAction()
     }
@@ -137,16 +144,16 @@ const stateHandlers = {
   [states.FETCH_USER]: async (input) => {
     let user = null
     try {
-      console.log('\nTrying to create new user...')
+      console.log(chalk.yellow('\nTrying to create new user...'))
       user = await signUp(store.email, store.password)
-      console.log('New user created')
+      console.log(chalk.green('New user created'))
     } catch (e) {
       if (e.code === 'auth/email-already-in-use') {
-        console.log('User already exist, trying to sign in...')
+        console.log(chalk.yellow('User already exist, trying to sign in...'))
         user = await signIn(store.email, store.password)
-        console.log('Signed in successfully')
+        console.log(chalk.green('Signed in successfully'))
       } else {
-        console.log('Sign in failed')
+        console.log(chalk.red('Sign in failed'))
         setNextAction(states.REQUEST_EMAIL)
         runNextAction()
         return
@@ -159,26 +166,26 @@ const stateHandlers = {
     // Signing in to fetch actual user data
     const { user } = await signIn(store.email, store.password)
     if (user.emailVerified) {
-      console.log(`Your email is verified`)
+      console.log(chalk.green(`Your email is verified`))
       setNextAction(states.START_CHAT)
     } else {
-      console.log(`Your email is not verified`)
+      console.log(chalk.yellow(`Your email is not verified`))
       setNextAction(states.REQUEST_EMAIL_VERIFICATION)
     }
     runNextAction()
   },  
   [states.REQUEST_EMAIL_VERIFICATION]: async (input) => {
     const user = await getCurrentUser()
-    console.log(`Sending verification email...`)
+    console.log(chalk.yellow(`Sending verification email...`))
     await user.sendEmailVerification()
-    console.log(`Verify your email and hit any key`)
+    console.log(chalk.blueBright(`Verify your email and hit any key`))
     setNextAction(states.CHECK_EMAIL_VERIFICATION)
     getLineAndRunNextAction()
   },  
   [states.START_CHAT]: async (input) => {
     const user = await getCurrentUser()
-    console.log('Welcome to the chat')
-    console.log('Type "/quit" to exit')
+    console.log(chalk.green('Welcome to the chat'))
+    console.log(chalk.yellow('Type "/quit" to exit'))
     await loadMessages()
     subscribeToCollection('messages', (snap) => {
       const message = snap.val()
